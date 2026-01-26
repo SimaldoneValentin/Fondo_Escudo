@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fondo Escudo</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Sign-In Platform Library -->
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
+    
+    <!-- API Service - Conexión directa a Google Cloud SQL -->
+    <script src="api-service.js"></script>
+    
+    <!-- Main Application Script -->
+    <script src="script.js"></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="container">
+            <div class="login-container">
+                <div class="logo-section">
+                    <div class="logo">
+                        <i class="fas fa-shield"></i>  <h1>Fondo Escudo</h1>
+                    </div>
+                    
+                    <p>Gestiona tu servicio de forma simple</p>
+                </div>
+                
+                <div class="login-form">
+                    <button class="btn-google" onclick="loginWithGoogle()">
+                        <i class="fab fa-google"></i>
+                        Continuar con Google
+                    </button>
+                    
+                    <div class="divider">
+                        <span>o</span>
+                    </div>
+                    
+                    <form id="loginForm">
+                        <div class="input-group">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="email" placeholder="Email" required>
+                        </div>
+                        
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="password" placeholder="Contraseña" required>
+                        </div>
+                        
+                        <button type="submit" class="btn-primary">Iniciar sesión</button>
+                    </form>
+                    
+                    <p class="register-link">
+                        ¿No tenés cuenta? <a href="#" onclick="showRegister()">Registrate</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Screen -->
+    <div id="registerScreen" class="screen">
+        <div class="container">
+            <div class="register-container">
+                <div class="header">
+                    <button class="btn-back" onclick="showLogin()">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <h2>Crear cuenta</h2>
+                </div>
+                
+                <form id="registerForm">
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="firstName" placeholder="Nombre" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="lastName" placeholder="Apellido" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="dni" placeholder="DNI" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="regEmail" placeholder="Email" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-phone"></i>
+                        <input type="tel" id="phone" placeholder="Celular (opcional)">
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-venus-mars"></i>
+                        <select id="gender" required>
+                            <option value="">Seleccionar género</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="regPassword" placeholder="Contraseña" required>
+                    </div>
+                    
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="confirmPassword" placeholder="Confirmar contraseña" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Crear cuenta</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="homeScreen" class="screen">
+        <div class="container">
+            <header class="app-header">
+                <div class="header-top">
+                <div class="user-info">
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <h3 id="userName">Juan Pérez</h3>
+                        <p class="plan-name">Plan Plus</p>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <!-- Service Status Card -->
+                <section class="status-card">
+                    <div class="status-header">
+                        <h3>Estado del servicio</h3>
+                        <div class="status-badge active">
+                            <i class="fas fa-check-circle"></i>
+                            Vigente
+                        </div>
+                    </div>
+                    
+                    <div class="status-details">
+                        <div class="status-item">
+                            <span class="label">Próximo vencimiento</span>
+                            <span class="value">30/1/2026</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">Días restantes</span>
+                            <span class="value highlight">7 días</span>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-primary btn-full">Renovar ahora</button>
+                </section>
+
+                <!-- Quick Actions -->
+                <section class="quick-actions">
+                    <h3>Acciones rápidas</h3>
+                    <div class="action-grid">
+                        <button class="action-card" onclick="showPlans()">
+                            <i class="fas fa-box"></i>
+                            <span>Mi Plan</span>
+                        </button>
+                        <button class="action-card" onclick="showPayments()">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Pagos</span>
+                        </button>
+                        <button class="action-card" onclick="showServiceStatus()">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Estado</span>
+                        </button>
+                        <button class="action-card" onclick="showProfile()">
+                            <i class="fas fa-user-cog"></i>
+                            <span>Perfil</span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Last Payment -->
+                <section class="last-payment">
+                    <h3>Último pago</h3>
+                    <div class="payment-card">
+                        <div class="payment-info">
+                            <div class="payment-date">
+                                <i class="fas fa-calendar"></i>
+                                <span>30/1/2026</span>
+                            </div>
+                            <div class="payment-amount">$15.000</div>
+                        </div>
+                        <div class="payment-plan">Plan Plus</div>
+                    </div>
+                </section>
+            </main>
+
+        </div>
+    </div>
+
+    <!-- Plans Screen -->
+    <div id="plansScreen" class="screen">
+        <div class="container">
+            <header class="screen-header">
+                <button class="btn-back" onclick="showHome()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Mi Plan</h2>
+            </header>
+
+            <main class="plans-content">
+                <!-- Current Plan -->
+                <section class="current-plan">
+                    <h3>Plan actual</h3>
+                    <div class="plan-card current">
+                        <div class="plan-header">
+                            <h4>Plan Plus</h4>
+                            <div class="plan-price">$15.000<span>/mes</span></div>
+                        </div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Plan plus $15.000</li>
+                            <li><i class="fas fa-check"></i> de 50% a 65% </li>
+                            <li><i class="fas fa-check"></i> Minima de 60 dias</li>
+                        </ul>
+                        <button class="btn-secondary">Cambiar de plan</button>
+                    </div>
+                </section>
+
+                <!-- Available Plans -->
+                <section class="available-plans">
+                    <h3>Planes disponibles</h3>
+                    
+                    <div class="plan-card">
+                        <div class="plan-header">
+                            <h4>Plan Normal</h4>
+                            <div class="plan-price">$10.000<span>/mes</span></div>
+                        </div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Plan base $10.000</li>
+                            <li><i class="fas fa-check"></i> de 20% a 45%</li>
+                            <li><i class="fas fa-check"></i> permanencia minima de 90 dias</li>
+                        </ul>
+                        <button class="btn-outline">Seleccionar</button>
+                    </div>
+
+                    <div class="plan-card">
+                        <div class="plan-header">
+                            <h4>Plan Pro</h4>
+                            <div class="plan-price">$20.000<span>/mes</span></div>
+                        </div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i>Plan pro $20.0000</li>
+                            <li><i class="fas fa-check"></i>de 70% a 90% </li>
+                            <li><i class="fas fa-check"></i>en cobertura general permanencia 60 dias ya con beneficios altos</li>
+
+                        </ul>
+                        <button class="btn-outline">Seleccionar</button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Payments Screen -->
+    <div id="paymentsScreen" class="screen">
+        <div class="container">
+            <header class="screen-header">
+                <button class="btn-back" onclick="showHome()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Historial de pagos</h2>
+            </header>
+
+            <main class="payments-content">
+                <!-- Payment Summary -->
+                <section class="payment-summary">
+                    <div class="summary-card">
+                        <div class="summary-item">
+                            <span class="label">Próximo pago</span>
+                            <span class="value">30/1/2026</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="label">Monto a pagar</span>
+                            <span class="value highlight">$15.000</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Payment History -->
+                <section class="payment-history">
+                    <h3>Historial</h3>
+                    <div class="payment-list">
+                        <div class="payment-item">
+                            <div class="payment-info">
+                                <div class="payment-date">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>15/11/2024</span>
+                                </div>
+                                <div class="payment-details">
+                                    <span class="payment-amount">$15.000</span>
+                                    <span class="payment-plan">Plan Plus</span>
+                                </div>
+                            </div>
+                            <div class="payment-status success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+
+                        <div class="payment-item">
+                            <div class="payment-info">
+                                <div class="payment-date">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>15/10/2024</span>
+                                </div>
+                                <div class="payment-details">
+                                    <span class="payment-amount">$15.000</span>
+                                    <span class="payment-plan">Plan Plus</span>
+                                </div>
+                            </div>
+                            <div class="payment-status success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+
+                        <div class="payment-item">
+                            <div class="payment-info">
+                                <div class="payment-date">
+                                    <i class="fas fa-calendar"></i>
+                                    <span>15/09/2024</span>
+                                </div>
+                                <div class="payment-details">
+                                    <span class="payment-amount">$10.000</span>
+                                    <span class="payment-plan">Plan Normal</span>
+                                </div>
+                            </div>
+                            <div class="payment-status success">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <button class="btn-primary btn-full">Pagar ahora</button>
+            </main>
+        </div>
+    </div>
+
+    <!-- Profile Screen -->
+    <div id="profileScreen" class="screen">
+        <div class="container">
+            <header class="screen-header">
+                <button class="btn-back" onclick="showHome()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Mi perfil</h2>
+            </header>
+
+            <main class="profile-content">
+                <!-- User Info -->
+                <section class="user-profile">
+                    <div class="profile-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <h3 id="profileName">Juan Pérez</h3>
+                    <p class="profile-email">juan.perez@email.com</p>
+                </section>
+
+                <!-- Personal Data -->
+                <section class="personal-data">
+                    <h3>Datos personales</h3>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="label">Nombre completo</span>
+                            <span class="value">Juan Pérez</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">DNI</span>
+                            <span class="value">12.345.678</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Celular</span>
+                            <span class="value">+54 9 11 2345-6789</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="label">Género</span>
+                            <span class="value">Masculino</span>
+                        </div>
+                    </div>
+                    <button class="btn-secondary">Editar datos</button>
+                </section>
+
+                <!-- Account Actions -->
+                <section class="account-actions">
+                    <button class="action-btn">
+                        <i class="fas fa-bell"></i>
+                        <span>Notificaciones</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="action-btn">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Seguridad</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="action-btn">
+                        <i class="fas fa-question-circle"></i>
+                        <span>Ayuda</span>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <button class="action-btn danger" onclick="logout()">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Cerrar sesión</span>
+                    </button>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-overlay" onclick="closePaymentModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Seleccionar método de pago</h3>
+                <button class="btn-close" onclick="closePaymentModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="payment-method-card" onclick="payWithMercadoPago()">
+                    <div class="payment-method-icon mp">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <h4>Mercado Pago</h4>
+                        <p>Pago rápido y seguro</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+                
+                <div class="payment-method-card" onclick="showBankTransfer()">
+                    <div class="payment-method-icon bank">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <h4>Transferencia bancaria</h4>
+                        <p>Cargar comprobante de pago</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bank Transfer Modal -->
+    <div id="bankTransferModal" class="modal">
+        <div class="modal-overlay" onclick="closeBankTransferModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="btn-back" onclick="closeBankTransferModal()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h3>Transferencia bancaria</h3>
+            </div>
+            <div class="modal-body">
+                <div class="bank-info-card">
+                    <h4>Datos para transferencia</h4>
+                    <div class="bank-data">
+                        <div class="bank-data-item">
+                            <span class="label">Titular</span>
+                            <div class="value-copy">
+                                <span class="value">Fondo Escudo S.A.S</span>
+                                <button class="btn-copy" onclick="copyToClipboard('Fondo Escudo S.A.')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bank-data-item">
+                            <span class="label">CVU</span>
+                            <div class="value-copy">
+                                <span class="value">0000003100012345678901</span>
+                                <button class="btn-copy" onclick="copyToClipboard('0000003100012345678901')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bank-data-item">
+                            <span class="label">Alias</span>
+                            <div class="value-copy">
+                                <span class="value">FONDO.ESCUDO.PAGO</span>
+                                <button class="btn-copy" onclick="copyToClipboard('FONDO.ESCUDO.PAGO')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bank-data-item">
+                            <span class="label">CUIT</span>
+                            <div class="value-copy">
+                                <span class="value">30-12345678-9</span>
+                                <button class="btn-copy" onclick="copyToClipboard('30-12345678-9')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bank-data-item amount-highlight">
+                            <span class="label">Monto a transferir</span>
+                            <span class="value amount" id="transferAmount">$15.000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="upload-section">
+                    <h4>Cargar comprobante</h4>
+                    <p class="upload-instructions">Una vez realizada la transferencia, sube tu comprobante de pago</p>
+                    
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <input type="file" id="receiptFile" accept="image/*,.pdf" onchange="handleFileUpload(event)" hidden>
+                        <label for="receiptFile" class="file-upload-label">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <span>Subir comprobante</span>
+                            <small>JPG, PNG o PDF (máx. 5MB)</small>
+                        </label>
+                    </div>
+
+                    <div id="filePreview" class="file-preview" style="display: none;">
+                        <div class="file-info">
+                            <i class="fas fa-file-alt"></i>
+                            <span id="fileName"></span>
+                        </div>
+                        <button class="btn-remove" onclick="removeFile()">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <button class="btn-primary btn-full" onclick="submitReceipt()" id="submitReceiptBtn" disabled>
+                        Enviar comprobante
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
