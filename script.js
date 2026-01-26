@@ -586,6 +586,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    const formRegistro = document.getElementById('form-registro');
+
+formRegistro.addEventListener('submit', async (e) => {
+    e.preventDefault(); // Esto evita que la página se recargue
+
+    const userData = {
+        firstName: document.getElementById('reg-nombre').value,
+        lastName: document.getElementById('reg-apellido').value,
+        email: document.getElementById('reg-email').value,
+        dni: document.getElementById('reg-dni').value,
+        gender: document.getElementById('reg-genero').value,
+        phone: document.getElementById('reg-telefono').value,
+        password: document.getElementById('reg-password').value
+    };
+
+    try {
+        console.log("Enviando datos...", userData);
+        const response = await window.apiService.register(userData);
+        alert("¡Registro exitoso!");
+        window.showLogin(); // Te manda al login después de registrarte
+    } catch (error) {
+        console.error("Error al registrar:", error);
+        alert("Error: " + error.message);
+    }
+    });
     // Add plan selection buttons
     const planButtons = document.querySelectorAll('.plan-card .btn-outline');
     planButtons.forEach((btn, index) => {
