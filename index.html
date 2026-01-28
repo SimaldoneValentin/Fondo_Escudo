@@ -13,10 +13,10 @@
     <meta name="google-signin-client_id" content="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
     
     <!-- API Service - Conexión directa a Google Cloud SQL -->
-    <script src="api-service.js"></script>
+    <script src="api-service.js" defer></script>
     
     <!-- Main Application Script -->
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -122,8 +122,65 @@
                     </div>
                     
                     <button type="submit" class="btn-primary">Crear cuenta</button>
+                    
+                    <div class="divider">
+                        <span>o</span>
+                    </div>
+                    
+                    <button type="button" class="btn-google" onclick="registerWithGoogle()">
+                        <i class="fab fa-google"></i>
+                        Registrarse con Google
+                    </button>
                 </form>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal para completar datos de Google -->
+    <div id="googleDataModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Completá tus datos</h3>
+                <button class="modal-close" onclick="closeGoogleDataModal()">&times;</button>
+            </div>
+            <form id="googleDataForm" class="modal-body">
+                <p class="modal-description">Para completar tu registro con Google, necesitamos algunos datos adicionales:</p>
+                
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="googleFirstName" placeholder="Nombre" required>
+                </div>
+                
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="googleLastName" placeholder="Apellido" required>
+                </div>
+                
+                <div class="input-group">
+                    <i class="fas fa-id-card"></i>
+                    <input type="text" id="googleDni" placeholder="DNI" required>
+                </div>
+                
+                <div class="input-group">
+                    <i class="fas fa-phone"></i>
+                    <input type="tel" id="googlePhone" placeholder="Celular (opcional)">
+                </div>
+                
+                <div class="input-group">
+                    <i class="fas fa-venus-mars"></i>
+                    <select id="googleGender" required>
+                        <option value="">Seleccionar género</option>
+                        <option value="masculino">Masculino</option>
+                        <option value="femenino">Femenino</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                
+                <input type="hidden" id="googleEmail" value="">
+                <input type="hidden" id="googleId" value="">
+                
+                <button type="submit" class="btn-primary">Completar registro</button>
+            </form>
         </div>
     </div>
 
@@ -137,7 +194,7 @@
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="user-details">
-                        <h3 id="userName">Juan Pérez</h3>
+                        <h3 id="userName">Usuario</h3>
                         <p class="plan-name">Plan Plus</p>
                     </div>
                 </div>
@@ -165,7 +222,7 @@
                         </div>
                     </div>
                     
-                    <button class="btn-primary btn-full">Renovar ahora</button>
+                    <button class="btn-primary btn-full" onclick="openPaymentModal()">Renovar ahora</button>
                 </section>
 
                 <!-- Quick Actions -->
@@ -352,7 +409,7 @@
                     </div>
                 </section>
 
-                <button class="btn-primary btn-full">Pagar ahora</button>
+                <button class="btn-primary btn-full" onclick="openPaymentModal()">Pagar ahora</button>
             </main>
         </div>
     </div>
@@ -373,8 +430,8 @@
                     <div class="profile-avatar">
                         <i class="fas fa-user"></i>
                     </div>
-                    <h3 id="profileName">Juan Pérez</h3>
-                    <p class="profile-email">juan.perez@email.com</p>
+                    <h3 id="profileName">Usuario</h3>
+                    <p class="profile-email" id="profileEmail">-</p>
                 </section>
 
                 <!-- Personal Data -->
@@ -383,37 +440,37 @@
                     <div class="data-list">
                         <div class="data-item">
                             <span class="label">Nombre completo</span>
-                            <span class="value">Juan Pérez</span>
+                            <span class="value" id="profileFullName">-</span>
                         </div>
                         <div class="data-item">
                             <span class="label">DNI</span>
-                            <span class="value">12.345.678</span>
+                            <span class="value" id="profileDni">-</span>
                         </div>
                         <div class="data-item">
                             <span class="label">Celular</span>
-                            <span class="value">+54 9 11 2345-6789</span>
+                            <span class="value" id="profilePhone">-</span>
                         </div>
                         <div class="data-item">
                             <span class="label">Género</span>
-                            <span class="value">Masculino</span>
+                            <span class="value" id="profileGender">-</span>
                         </div>
                     </div>
-                    <button class="btn-secondary">Editar datos</button>
+                    <button class="btn-secondary" onclick="openEditProfileModal()">Editar datos</button>
                 </section>
 
                 <!-- Account Actions -->
                 <section class="account-actions">
-                    <button class="action-btn">
+                    <button class="action-btn" onclick="openNotificationsModal()">
                         <i class="fas fa-bell"></i>
                         <span>Notificaciones</span>
                         <i class="fas fa-chevron-right"></i>
                     </button>
-                    <button class="action-btn">
+                    <button class="action-btn" onclick="openSecurityModal()">
                         <i class="fas fa-shield-alt"></i>
                         <span>Seguridad</span>
                         <i class="fas fa-chevron-right"></i>
                     </button>
-                    <button class="action-btn">
+                    <button class="action-btn" onclick="openHelpModal()">
                         <i class="fas fa-question-circle"></i>
                         <span>Ayuda</span>
                         <i class="fas fa-chevron-right"></i>
@@ -555,7 +612,226 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <script src="api-service.js"></script>
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal">
+        <div class="modal-overlay" onclick="closeEditProfileModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar datos</h3>
+                <button class="btn-close" onclick="closeEditProfileModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm">
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="editFullName" placeholder="Nombre completo" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-phone"></i>
+                        <input type="tel" id="editPhone" placeholder="Celular">
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-venus-mars"></i>
+                        <select id="editGender" required>
+                            <option value="">Seleccionar género</option>
+                            <option value="masculino">Masculino</option>
+                            <option value="femenino">Femenino</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="editDni" placeholder="DNI" disabled>
+                    </div>
+                    <p style="margin-top: 8px; color: var(--text-muted); font-size: 0.9rem;">
+                        Para cambiar el DNI, solicitalo desde Ayuda.
+                    </p>
+
+                    <button type="submit" class="btn-primary btn-full">Guardar cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-overlay" onclick="closeHelpModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ayuda</h3>
+                <button class="btn-close" onclick="closeHelpModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="payment-method-card" onclick="selectHelpType('dni')">
+                    <div class="payment-method-icon bank">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <h4>Solicitar corrección de DNI</h4>
+                        <p>Genera un ticket con tus datos</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="payment-method-card" onclick="selectHelpType('problema')">
+                    <div class="payment-method-icon mp">
+                        <i class="fas fa-bug"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <h4>Reportar un problema</h4>
+                        <p>Contanos qué pasó</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="payment-method-card" onclick="selectHelpType('otro')">
+                    <div class="payment-method-icon bank">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <h4>Otra consulta</h4>
+                        <p>Atención y soporte</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div id="helpFormSection" style="display:none; margin-top: 16px;">
+                    <div class="input-group">
+                        <i class="fas fa-pencil-alt"></i>
+                        <input type="text" id="helpSubject" placeholder="Asunto" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fas fa-align-left"></i>
+                        <textarea id="helpMessage" placeholder="Escribí el detalle..." rows="4" style="width:100%; resize:none;" required></textarea>
+                    </div>
+                    <button class="btn-primary btn-full" onclick="submitHelpTicket()">Generar ticket y enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Notificaciones -->
+    <div id="notificationsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Notificaciones</h3>
+                <button class="modal-close" onclick="closeNotificationsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="notification-settings">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-bell"></i>
+                            <div>
+                                <h4>Notificaciones push</h4>
+                                <p>Recibí alertas en tu dispositivo</p>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pushNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <h4>Notificaciones por email</h4>
+                                <p>Recibí novedades en tu correo</p>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="emailNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="fas fa-credit-card"></i>
+                            <div>
+                                <h4>Alertas de pago</h4>
+                                <p>Recordatorios de vencimiento</p>
+                            </div>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="paymentAlerts" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                </div>
+                <button class="btn-primary btn-full" onclick="saveNotificationSettings()" style="margin-top: 20px;">Guardar preferencias</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Seguridad -->
+    <div id="securityModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Seguridad</h3>
+                <button class="modal-close" onclick="closeSecurityModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Historial de accesos -->
+                <div class="security-section">
+                    <h4><i class="fas fa-history"></i> Historial de accesos</h4>
+                    <div class="access-history">
+                        <div class="access-item current">
+                            <div class="access-icon">
+                                <i class="fas fa-mobile-alt"></i>
+                            </div>
+                            <div class="access-info">
+                                <span class="access-time" id="lastLoginTime">Último inicio: Hoy, --:-- hs</span>
+                                <span class="access-location" id="lastLoginLocation">Desde Argentina</span>
+                            </div>
+                            <span class="access-badge">Actual</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cambio de contraseña -->
+                <div class="security-section">
+                    <h4><i class="fas fa-key"></i> Cambiar contraseña</h4>
+                    <form id="changePasswordForm">
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="currentPassword" placeholder="Contraseña actual" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="newPassword" placeholder="Nueva contraseña" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="confirmNewPassword" placeholder="Confirmar nueva contraseña" required>
+                        </div>
+                        <button type="submit" class="btn-primary btn-full">Actualizar contraseña</button>
+                    </form>
+                </div>
+
+                <!-- Políticas de privacidad -->
+                <div class="security-section">
+                    <h4><i class="fas fa-shield-alt"></i> Privacidad y seguridad</h4>
+                    <a href="#" class="policy-link" onclick="showPrivacyPolicy()">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Políticas de Privacidad</span>
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                    <a href="#" class="policy-link" onclick="showTermsOfService()">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Términos y Condiciones</span>
+                        <i class="fas fa-external-link-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
