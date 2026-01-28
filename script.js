@@ -86,6 +86,7 @@ function showProfile() {
         return;
     }
     showScreen('profileScreen');
+    updateUserInterface();
 }
 
 // Authentication Functions - Con API REST (sin Firebase SDK)
@@ -95,6 +96,13 @@ async function loginWithGoogle() {
         
         // En modo demo, simular login con Google
         const response = await window.apiService.loginWithGoogle('demo-google-token');
+        
+        // Si es usuario nuevo sin datos completos, pedir que complete
+        if (response.isNewUser || !response.user.dni) {
+            hideLoading();
+            openGoogleDataModal(response.user);
+            return;
+        }
         
         currentUser = response.user;
         updateUserInterface();
@@ -109,6 +117,129 @@ async function loginWithGoogle() {
     } catch (error) {
         hideLoading();
         showErrorMessage(error.message || 'Error al iniciar sesión con Google');
+    }
+}
+
+// Registro con Google - abre modal para completar datos
+async function registerWithGoogle() {
+    try {
+        showLoading();
+        
+        // Simular autenticación con Google
+        const googleToken = 'demo-google-register-' + Date.now();
+        const googleEmail = 'nuevo.usuario@gmail.com';
+        const googleId = 'google-' + googleToken.slice(-8);
+        
+        // Verificar si ya existe un usuario con este email
+        const existingUser = window.apiService.findDemoUserByEmail(googleEmail);
+        
+        if (existingUser) {
+            hideLoading();
+            showErrorMessage('Este email ya está registrado. Usá "Iniciar con Google" en la pantalla de login.');
+            return;
+        }
+        
+        hideLoading();
+        
+        // Abrir modal para completar datos
+        openGoogleDataModal({
+            email: googleEmail,
+            googleId: googleId,
+            isNewRegistration: true
+        });
+        
+    } catch (error) {
+        hideLoading();
+        showErrorMessage(error.message || 'Error al conectar con Google');
+    }
+}
+
+// Modal para completar datos de Google
+function openGoogleDataModal(googleUser) {
+    const modal = document.getElementById('googleDataModal');
+    if (!modal) return;
+    
+    // Prellenar campos si hay datos
+    document.getElementById('googleEmail').value = googleUser.email || '';
+    document.getElementById('googleId').value = googleUser.googleId || '';
+    
+    if (googleUser.firstName) {
+        document.getElementById('googleFirstName').value = googleUser.firstName;
+    }
+    if (googleUser.lastName) {
+        document.getElementById('googleLastName').value = googleUser.lastName;
+    }
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeGoogleDataModal() {
+    const modal = document.getElementById('googleDataModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        document.getElementById('googleDataForm').reset();
+    }
+}
+
+async function handleGoogleDataSubmit(event) {
+    event.preventDefault();
+    
+    const firstName = document.getElementById('googleFirstName').value.trim();
+    const lastName = document.getElementById('googleLastName').value.trim();
+    const dni = document.getElementById('googleDni').value.trim();
+    const phone = document.getElementById('googlePhone').value.trim();
+    const gender = document.getElementById('googleGender').value;
+    const email = document.getElementById('googleEmail').value;
+    const googleId = document.getElementById('googleId').value;
+    
+    if (!firstName || !lastName || !dni || !gender) {
+        showErrorMessage('Completá todos los campos obligatorios');
+        return;
+    }
+    
+    // Verificar si el DNI ya existe
+    const users = window.apiService.getDemoUsers();
+    const dniExists = users.some(u => u.dni === dni);
+    if (dniExists) {
+        showErrorMessage('Este DNI ya está registrado en el sistema');
+        return;
+    }
+    
+    try {
+        showLoading();
+        
+        const newUser = {
+            id: Date.now(),
+            uid: 'google-uid-' + Date.now(),
+            googleId: googleId,
+            email: email,
+            firstName: firstName,
+            lastName: lastName,
+            dni: dni,
+            phone: phone || null,
+            gender: gender,
+            plan: 'Plan Normal',
+            registeredWith: 'google',
+            createdAt: new Date().toISOString(),
+            lastLogin: new Date().toISOString()
+        };
+        
+        // Guardar usuario
+        window.apiService.saveDemoUser(newUser);
+        window.apiService.setToken('demo-token-google-' + Date.now());
+        
+        currentUser = newUser;
+        closeGoogleDataModal();
+        updateUserInterface();
+        showHome();
+        hideLoading();
+        showSuccessMessage('¡Cuenta creada exitosamente!');
+        
+    } catch (error) {
+        hideLoading();
+        showErrorMessage(error.message || 'Error al crear cuenta');
     }
 }
 
@@ -210,20 +341,356 @@ async function logout() {
 function updateUserInterface() {
     if (!currentUser) return;
     
-    // Update user name in home
+    // Update user name in home - usar firstName y lastName
     const userNameElement = document.getElementById('userName');
     if (userNameElement) {
-        userNameElement.textContent = currentUser.name;
+        const fullName = currentUser.firstName && currentUser.lastName 
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : currentUser.name || 'Usuario';
+        userNameElement.textContent = fullName;
     }
     
     // Update user name in profile
     const profileNameElement = document.getElementById('profileName');
     if (profileNameElement) {
-        profileNameElement.textContent = currentUser.name;
+        const fullName = currentUser.firstName && currentUser.lastName 
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : currentUser.name || 'Usuario';
+        profileNameElement.textContent = fullName;
+    }
+
+    const profileEmailElement = document.getElementById('profileEmail');
+    if (profileEmailElement) {
+        profileEmailElement.textContent = currentUser.email || '-';
+    }
+
+    const profileFullNameElement = document.getElementById('profileFullName');
+    if (profileFullNameElement) {
+        const fullName = currentUser.firstName && currentUser.lastName 
+            ? `${currentUser.firstName} ${currentUser.lastName}`
+            : currentUser.name || '-';
+        profileFullNameElement.textContent = fullName;
+    }
+
+    const profileDniElement = document.getElementById('profileDni');
+    if (profileDniElement) {
+        profileDniElement.textContent = currentUser.dni || '-';
+    }
+
+    const profilePhoneElement = document.getElementById('profilePhone');
+    if (profilePhoneElement) {
+        profilePhoneElement.textContent = currentUser.phone || '-';
+    }
+
+    const profileGenderElement = document.getElementById('profileGender');
+    if (profileGenderElement) {
+        profileGenderElement.textContent = currentUser.gender || '-';
     }
     
     // Update plan information
     updatePlanInformation();
+}
+
+function openEditProfileModal() {
+    if (!currentUser) {
+        showLogin();
+        return;
+    }
+
+    const modal = document.getElementById('editProfileModal');
+    if (!modal) return;
+
+    const fullName = currentUser.firstName && currentUser.lastName
+        ? `${currentUser.firstName} ${currentUser.lastName}`
+        : currentUser.name || '';
+
+    const editFullName = document.getElementById('editFullName');
+    const editPhone = document.getElementById('editPhone');
+    const editGender = document.getElementById('editGender');
+    const editDni = document.getElementById('editDni');
+
+    if (editFullName) editFullName.value = fullName;
+    if (editPhone) editPhone.value = currentUser.phone || '';
+    if (editGender) editGender.value = currentUser.gender || '';
+    if (editDni) editDni.value = currentUser.dni || '';
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditProfileModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+let selectedHelpType = null;
+
+function openHelpModal() {
+    const modal = document.getElementById('helpModal');
+    if (!modal) return;
+    selectedHelpType = null;
+
+    const formSection = document.getElementById('helpFormSection');
+    const helpSubject = document.getElementById('helpSubject');
+    const helpMessage = document.getElementById('helpMessage');
+    if (formSection) formSection.style.display = 'none';
+    if (helpSubject) helpSubject.value = '';
+    if (helpMessage) helpMessage.value = '';
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeHelpModal() {
+    const modal = document.getElementById('helpModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function selectHelpType(type) {
+    selectedHelpType = type;
+    const formSection = document.getElementById('helpFormSection');
+    const helpSubject = document.getElementById('helpSubject');
+
+    if (formSection) {
+        formSection.style.display = 'block';
+    }
+
+    if (helpSubject) {
+        if (type === 'dni') helpSubject.value = 'Solicitud de corrección de DNI';
+        if (type === 'problema') helpSubject.value = 'Reporte de problema';
+        if (type === 'otro') helpSubject.value = 'Consulta';
+    }
+}
+
+function generateTicketCode() {
+    const part = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const ts = Date.now().toString().slice(-6);
+    return `FE-${ts}-${part}`;
+}
+
+function submitHelpTicket() {
+    if (!currentUser) {
+        showLogin();
+        return;
+    }
+
+    if (!selectedHelpType) {
+        showErrorMessage('Seleccioná una opción de ayuda');
+        return;
+    }
+
+    const subjectEl = document.getElementById('helpSubject');
+    const messageEl = document.getElementById('helpMessage');
+    const subject = subjectEl ? subjectEl.value.trim() : '';
+    const message = messageEl ? messageEl.value.trim() : '';
+
+    if (!subject || !message) {
+        showErrorMessage('Completá asunto y detalle');
+        return;
+    }
+
+    const code = generateTicketCode();
+
+    const fullName = currentUser.firstName && currentUser.lastName
+        ? `${currentUser.firstName} ${currentUser.lastName}`
+        : currentUser.name || 'Usuario';
+
+    const ticket = {
+        code,
+        type: selectedHelpType,
+        subject,
+        message,
+        user: {
+            email: currentUser.email || null,
+            fullName,
+            dni: currentUser.dni || null,
+            phone: currentUser.phone || null,
+            gender: currentUser.gender || null,
+            plan: currentUser.plan || null
+        },
+        createdAt: new Date().toISOString()
+    };
+
+    // Guardar ticket en localStorage para que el desarrollador pueda verlo
+    const existing = localStorage.getItem('supportTickets');
+    const tickets = existing ? JSON.parse(existing) : [];
+    tickets.unshift(ticket);
+    localStorage.setItem('supportTickets', JSON.stringify(tickets));
+
+    // Cerrar modal y mostrar confirmación (sin abrir app de email)
+    closeHelpModal();
+    showSuccessMessage(`¡Ticket enviado! Código: ${ticket.code}`);
+    
+    // Log para el desarrollador
+    console.log('📩 Nuevo ticket de soporte:', ticket);
+}
+
+// ==================== NOTIFICACIONES ====================
+function openNotificationsModal() {
+    const modal = document.getElementById('notificationsModal');
+    if (modal) {
+        // Cargar preferencias guardadas
+        const settings = JSON.parse(localStorage.getItem('notificationSettings') || '{}');
+        
+        const pushEl = document.getElementById('pushNotifications');
+        const emailEl = document.getElementById('emailNotifications');
+        const paymentEl = document.getElementById('paymentAlerts');
+        const promoEl = document.getElementById('promoNotifications');
+        
+        if (pushEl) pushEl.checked = settings.push !== false;
+        if (emailEl) emailEl.checked = settings.email !== false;
+        if (paymentEl) paymentEl.checked = settings.payment !== false;
+        if (promoEl) promoEl.checked = settings.promo === true;
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeNotificationsModal() {
+    const modal = document.getElementById('notificationsModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function saveNotificationSettings() {
+    const settings = {
+        push: document.getElementById('pushNotifications')?.checked ?? true,
+        email: document.getElementById('emailNotifications')?.checked ?? true,
+        payment: document.getElementById('paymentAlerts')?.checked ?? true,
+        promo: document.getElementById('promoNotifications')?.checked ?? false
+    };
+    
+    localStorage.setItem('notificationSettings', JSON.stringify(settings));
+    closeNotificationsModal();
+    showSuccessMessage('Preferencias guardadas');
+}
+
+// ==================== SEGURIDAD ====================
+function openSecurityModal() {
+    const modal = document.getElementById('securityModal');
+    if (modal) {
+        // Actualizar historial de accesos
+        updateAccessHistory();
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeSecurityModal() {
+    const modal = document.getElementById('securityModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        // Limpiar formulario de contraseña
+        document.getElementById('changePasswordForm')?.reset();
+    }
+}
+
+function updateAccessHistory() {
+    const timeEl = document.getElementById('lastLoginTime');
+    const locationEl = document.getElementById('lastLoginLocation');
+    
+    if (currentUser && currentUser.lastLogin) {
+        const lastLogin = new Date(currentUser.lastLogin);
+        const now = new Date();
+        const isToday = lastLogin.toDateString() === now.toDateString();
+        
+        const hours = lastLogin.getHours().toString().padStart(2, '0');
+        const minutes = lastLogin.getMinutes().toString().padStart(2, '0');
+        
+        if (timeEl) {
+            timeEl.textContent = isToday 
+                ? `Último inicio: Hoy, ${hours}:${minutes} hs`
+                : `Último inicio: ${lastLogin.toLocaleDateString('es-AR')}, ${hours}:${minutes} hs`;
+        }
+    } else {
+        if (timeEl) {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            timeEl.textContent = `Último inicio: Hoy, ${hours}:${minutes} hs`;
+        }
+    }
+    
+    // Simular ubicación (en producción vendría del servidor)
+    if (locationEl) {
+        locationEl.textContent = 'Desde Argentina';
+    }
+}
+
+async function handleChangePassword(event) {
+    event.preventDefault();
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+    
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+        showErrorMessage('Completá todos los campos');
+        return;
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+        showErrorMessage('Las contraseñas nuevas no coinciden');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showErrorMessage('La contraseña debe tener al menos 6 caracteres');
+        return;
+    }
+    
+    // En modo demo, verificar contra localStorage
+    if (window.apiService.demoMode) {
+        if (currentUser.registeredWith === 'google') {
+            showErrorMessage('Los usuarios de Google no pueden cambiar contraseña aquí');
+            return;
+        }
+        
+        if (currentUser.password !== currentPassword) {
+            showErrorMessage('Contraseña actual incorrecta');
+            return;
+        }
+        
+        // Actualizar contraseña
+        currentUser.password = newPassword;
+        window.apiService.saveDemoUser(currentUser);
+        
+        document.getElementById('changePasswordForm').reset();
+        showSuccessMessage('¡Contraseña actualizada!');
+    } else {
+        // En producción, llamar al backend
+        try {
+            showLoading();
+            await window.apiService.changePassword(currentPassword, newPassword);
+            hideLoading();
+            document.getElementById('changePasswordForm').reset();
+            showSuccessMessage('¡Contraseña actualizada!');
+        } catch (error) {
+            hideLoading();
+            showErrorMessage(error.message || 'Error al cambiar contraseña');
+        }
+    }
+}
+
+function showPrivacyPolicy() {
+    // Abrir políticas de privacidad (puede ser una URL o modal)
+    alert('Políticas de Privacidad\n\nFondo Escudo protege tus datos personales y bancarios conforme a la Ley 25.326 de Protección de Datos Personales de Argentina.\n\nTus datos son utilizados únicamente para brindarte el servicio contratado y nunca serán compartidos con terceros sin tu consentimiento.\n\nPara más información, contactanos a soporte@fondoescudo.com');
+}
+
+function showTermsOfService() {
+    // Abrir términos y condiciones
+    alert('Términos y Condiciones\n\nAl utilizar Fondo Escudo aceptás las condiciones del servicio.\n\nEl servicio brinda cobertura según el plan contratado.\n\nPara consultas sobre términos específicos, contactanos a soporte@fondoescudo.com');
 }
 
 function updatePlanInformation() {
@@ -324,19 +791,10 @@ function closePaymentModal() {
 
 function payWithMercadoPago() {
     closePaymentModal();
-    showLoading();
+    showSuccessMessage('Redirigiendo a Mercado Pago...');
     
-    // Simulate Mercado Pago redirect
-    setTimeout(() => {
-        hideLoading();
-        showSuccessMessage('Redirigiendo a Mercado Pago...');
-        
-        // In production, redirect to Mercado Pago payment link
-        setTimeout(() => {
-            showSuccessMessage('¡Pago procesado exitosamente!');
-            updatePaymentHistory();
-        }, 2000);
-    }, 1000);
+    // Abrir link de pago de Mercado Pago en nueva pestaña
+    window.open('https://mpago.la/18Y8ptZ', '_blank');
 }
 
 function showBankTransfer() {
@@ -547,6 +1005,74 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
         registerForm.addEventListener('submit', handleRegister);
+    }
+
+    // Google data form (para completar registro con Google)
+    const googleDataForm = document.getElementById('googleDataForm');
+    if (googleDataForm) {
+        googleDataForm.addEventListener('submit', handleGoogleDataSubmit);
+    }
+
+    // Cambio de contraseña
+    const changePasswordForm = document.getElementById('changePasswordForm');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', handleChangePassword);
+    }
+
+    const editProfileForm = document.getElementById('editProfileForm');
+    if (editProfileForm) {
+        editProfileForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (!currentUser) {
+                showLogin();
+                return;
+            }
+
+            const fullNameInput = document.getElementById('editFullName');
+            const phoneInput = document.getElementById('editPhone');
+            const genderSelect = document.getElementById('editGender');
+
+            const fullName = fullNameInput ? fullNameInput.value.trim() : '';
+            const phone = phoneInput ? phoneInput.value.trim() : '';
+            const gender = genderSelect ? genderSelect.value : '';
+
+            if (!fullName) {
+                showErrorMessage('Ingresá tu nombre completo');
+                return;
+            }
+
+            if (!gender) {
+                showErrorMessage('Seleccioná un género');
+                return;
+            }
+
+            const parts = fullName.split(' ').filter(Boolean);
+            const firstName = parts.shift() || '';
+            const lastName = parts.join(' ') || '';
+
+            try {
+                showLoading();
+
+                const payload = {
+                    firstName,
+                    lastName,
+                    phone: phone || null,
+                    gender
+                };
+
+                const result = await window.apiService.updateProfile(payload);
+                
+                currentUser = result.user ? result.user : { ...currentUser, ...payload };
+                updateUserInterface();
+                hideLoading();
+                closeEditProfileModal();
+                showSuccessMessage('Datos actualizados');
+            } catch (err) {
+                hideLoading();
+                showErrorMessage(err.message || 'No se pudo actualizar');
+            }
+        });
     }
     
     // Add input validation
