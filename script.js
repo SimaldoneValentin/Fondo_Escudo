@@ -54,6 +54,67 @@ function showHome() {
         return;
     }
     showScreen('homeScreen');
+    updatePaymentDates();
+}
+
+function updatePaymentDates() {
+    if (!currentUser) return;
+    
+    // Calcular próxima fecha de vencimiento (día 15 de cada mes)
+    const now = new Date();
+    let nextPayment = new Date(now.getFullYear(), now.getMonth(), 15);
+    
+    // Si ya pasó el día 15, ir al próximo mes
+    if (now.getDate() >= 15) {
+        nextPayment.setMonth(nextPayment.getMonth() + 1);
+    }
+    
+    // Si el usuario tiene una fecha de registro, calcular desde ahí
+    if (currentUser.registrationDate) {
+        const regDate = new Date(currentUser.registrationDate);
+        const dayOfMonth = regDate.getDate();
+        nextPayment = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
+        if (now.getDate() >= dayOfMonth) {
+            nextPayment.setMonth(nextPayment.getMonth() + 1);
+        }
+    }
+    
+    // Calcular días restantes
+    const diffTime = nextPayment.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Formatear fecha
+    const day = nextPayment.getDate();
+    const month = nextPayment.getMonth() + 1;
+    const year = nextPayment.getFullYear();
+    const formattedDate = `${day}/${month}/${year}`;
+    
+    // Actualizar elementos en la UI
+    const dateEl = document.getElementById('nextPaymentDate');
+    const daysEl = document.getElementById('daysRemaining');
+    
+    if (dateEl) {
+        dateEl.textContent = formattedDate;
+    }
+    
+    if (daysEl) {
+        if (diffDays <= 0) {
+            daysEl.textContent = 'Vencido';
+            daysEl.style.color = '#ef4444';
+        } else if (diffDays === 1) {
+            daysEl.textContent = '1 día';
+            daysEl.style.color = '#f59e0b';
+        } else if (diffDays <= 5) {
+            daysEl.textContent = `${diffDays} días`;
+            daysEl.style.color = '#f59e0b';
+        } else {
+            daysEl.textContent = `${diffDays} días`;
+            daysEl.style.color = '#22c55e';
+        }
+    }
+    
+    // Guardar fecha de próximo pago en el usuario
+    currentUser.nextPaymentDate = nextPayment.toISOString();
 }
 
 function showPlans() {
@@ -62,6 +123,46 @@ function showPlans() {
         return;
     }
     showScreen('plansScreen');
+    updateCurrentPlanDisplay();
+    updatePendingPlanUI();
+    hideCurrentPlanFromAvailable();
+}
+
+function updateCurrentPlanDisplay() {
+    // Obtener plan actual del usuario
+    let planKey = 'plus';
+    if (currentUser && currentUser.plan) {
+        const planName = currentUser.plan.toLowerCase();
+        if (planName.includes('base') || planName.includes('normal')) {
+            planKey = 'base';
+        } else if (planName.includes('pro')) {
+            planKey = 'pro';
+        }
+    }
+    
+    const planData = PLANS_DATA[planKey];
+    
+    // Actualizar título del plan
+    const titleEl = document.getElementById('currentPlanTitle');
+    if (titleEl) {
+        titleEl.textContent = planData.emoji + ' ' + planData.title.replace('PLAN ', 'Plan ');
+    }
+    
+    // Actualizar precio
+    const priceEl = document.getElementById('currentPlanPrice');
+    if (priceEl) {
+        priceEl.innerHTML = planData.cost + '<span>/mes</span>';
+    }
+    
+    // Actualizar características
+    const featuresEl = document.getElementById('currentPlanFeatures');
+    if (featuresEl) {
+        featuresEl.innerHTML = `
+            <li><i class="fas fa-check"></i> ${planData.coverage}</li>
+            <li><i class="fas fa-check"></i> Permanencia mínima ${planData.permanence}</li>
+            <li><i class="fas fa-check"></i> ${planData.benefits}</li>
+        `;
+    }
 }
 
 function showPayments() {
@@ -77,7 +178,302 @@ function showServiceStatus() {
         showLogin();
         return;
     }
-    showScreen('homeScreen');
+    openPlanStatusModal();
+}
+
+function showMultas() {
+    if (!currentUser) {
+        showLogin();
+        return;
+    }
+    showScreen('multasScreen');
+    loadMultas();
+}
+
+function loadMultas() {
+    // Cargar multas del usuario desde localStorage o mostrar vacío
+    const multasContainer = document.getElementById('multasList');
+    if (!multasContainer) return;
+    
+    const multas = currentUser.multas || [];
+    
+    if (multas.length === 0) {
+        multasContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <h4>Sin multas</h4>
+                <p>No tenés multas registradas</p>
+            </div>
+        `;
+    } else {
+        multasContainer.innerHTML = multas.map(multa => `
+            <div class="multa-card ${multa.pagada ? 'pagada' : 'pendiente'}">
+                <div class="multa-icon">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="multa-info">
+                    <h4>${multa.descripcion}</h4>
+                    <p class="multa-fecha">${multa.fecha}</p>
+                </div>
+                <div class="multa-monto">
+                    <span class="monto">$${multa.monto.toLocaleString('es-AR')}</span>
+                    <span class="estado ${multa.pagada ? 'pagada' : 'pendiente'}">${multa.pagada ? 'Pagada' : 'Pendiente'}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+// ==================== PLAN STATUS MODAL ====================
+const PLANS_DATA = {
+    base: {
+        emoji: '🟢',
+        title: 'PLAN BASE',
+        description: 'El plan de entrada para quienes buscan protección esencial al menor costo.',
+        cost: '$10.000',
+        coverage: 'Del 20% al 45%',
+        permanence: '90 días (3 meses)',
+        benefits: 'Estándar',
+        ideal: 'Personas que inician y quieren probar el sistema.',
+        class: 'plan-base'
+    },
+    plus: {
+        emoji: '🔵',
+        title: 'PLAN PLUS',
+        description: 'El equilibrio perfecto entre costo y velocidad de cobertura. El más recomendado.',
+        cost: '$15.000',
+        coverage: 'Del 50% al 65%',
+        permanence: '60 días (2 meses)',
+        benefits: 'Intermedio - Cobertura Ampliada',
+        ideal: 'Usuarios que buscan seguridad sólida en poco tiempo.',
+        class: 'plan-plus'
+    },
+    pro: {
+        emoji: '🟡',
+        title: 'PLAN PRO',
+        description: 'Máxima potencia. Diseñado para cubrir casi la totalidad de cualquier imprevisto.',
+        cost: '$20.000',
+        coverage: 'Del 70% al 90%',
+        permanence: '60 días (2 meses)',
+        benefits: 'Altos (Cobertura General Superior)',
+        ideal: 'Quienes no quieren correr riesgos y buscan la mejor protección.',
+        class: 'plan-pro'
+    }
+};
+
+function openPlanStatusModal() {
+    const modal = document.getElementById('planStatusModal');
+    if (!modal) return;
+    
+    // Obtener plan del usuario (por defecto 'plus')
+    let userPlan = 'plus';
+    if (currentUser && currentUser.plan) {
+        const planName = currentUser.plan.toLowerCase();
+        if (planName.includes('base') || planName.includes('normal')) {
+            userPlan = 'base';
+        } else if (planName.includes('pro')) {
+            userPlan = 'pro';
+        } else {
+            userPlan = 'plus';
+        }
+    }
+    
+    const planData = PLANS_DATA[userPlan];
+    
+    // Actualizar badge
+    const badge = document.getElementById('planBadge');
+    if (badge) {
+        badge.className = 'plan-status-badge ' + planData.class;
+        badge.querySelector('.plan-emoji').textContent = planData.emoji;
+        badge.querySelector('.plan-title').textContent = planData.title;
+    }
+    
+    // Actualizar descripción
+    const desc = document.getElementById('planDescription');
+    if (desc) desc.textContent = planData.description;
+    
+    // Actualizar detalles
+    const cost = document.getElementById('planCost');
+    if (cost) cost.textContent = planData.cost;
+    
+    const coverage = document.getElementById('planCoverage');
+    if (coverage) coverage.textContent = planData.coverage;
+    
+    const permanence = document.getElementById('planPermanence');
+    if (permanence) permanence.textContent = planData.permanence;
+    
+    const benefits = document.getElementById('planBenefits');
+    if (benefits) benefits.textContent = planData.benefits;
+    
+    const ideal = document.getElementById('planIdeal');
+    if (ideal) ideal.textContent = planData.ideal;
+    
+    modal.classList.add('active');
+}
+
+function closePlanStatusModal() {
+    const modal = document.getElementById('planStatusModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// ==================== CAMBIO DE PLAN ====================
+let pendingPlanChange = null;
+
+function selectPlan(planKey) {
+    // Obtener plan actual del usuario
+    let currentPlanKey = 'plus';
+    if (currentUser && currentUser.plan) {
+        const planName = currentUser.plan.toLowerCase();
+        if (planName.includes('base') || planName.includes('normal')) {
+            currentPlanKey = 'base';
+        } else if (planName.includes('pro')) {
+            currentPlanKey = 'pro';
+        }
+    }
+    
+    // Si es el mismo plan, no hacer nada
+    if (planKey === currentPlanKey) {
+        showSuccessMessage('Ya tenés este plan activo');
+        return;
+    }
+    
+    // Guardar plan pendiente
+    pendingPlanChange = planKey;
+    
+    // Mostrar modal de confirmación
+    openChangePlanModal(currentPlanKey, planKey);
+}
+
+function openChangePlanModal(currentPlanKey, newPlanKey) {
+    const modal = document.getElementById('changePlanModal');
+    if (!modal) return;
+    
+    const currentPlan = PLANS_DATA[currentPlanKey];
+    const newPlan = PLANS_DATA[newPlanKey];
+    
+    // Actualizar nombres de planes
+    const currentPlanName = document.getElementById('currentPlanName');
+    if (currentPlanName) {
+        currentPlanName.textContent = currentPlan.emoji + ' ' + currentPlan.title;
+    }
+    
+    const newPlanName = document.getElementById('newPlanName');
+    if (newPlanName) {
+        newPlanName.textContent = newPlan.emoji + ' ' + newPlan.title;
+    }
+    
+    // Calcular fecha de renovación (próximo mes, día 15)
+    const renewalDate = document.getElementById('renewalDate');
+    if (renewalDate) {
+        const nextRenewal = getNextRenewalDate();
+        renewalDate.textContent = nextRenewal;
+    }
+    
+    modal.classList.add('active');
+}
+
+function getNextRenewalDate() {
+    const now = new Date();
+    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    
+    // Próxima renovación: día 15 del próximo mes
+    let month = now.getMonth();
+    let year = now.getFullYear();
+    
+    // Si ya pasó el día 15, ir al próximo mes
+    if (now.getDate() >= 15) {
+        month++;
+        if (month > 11) {
+            month = 0;
+            year++;
+        }
+    }
+    
+    return `15 de ${months[month]}, ${year}`;
+}
+
+function closeChangePlanModal() {
+    const modal = document.getElementById('changePlanModal');
+    if (modal) modal.classList.remove('active');
+    pendingPlanChange = null;
+}
+
+function confirmPlanChange() {
+    if (!pendingPlanChange || !currentUser) {
+        closeChangePlanModal();
+        return;
+    }
+    
+    const newPlan = PLANS_DATA[pendingPlanChange];
+    
+    // Guardar cambio pendiente en el usuario
+    currentUser.pendingPlan = {
+        plan: pendingPlanChange,
+        planName: newPlan.title,
+        scheduledDate: getNextRenewalDate(),
+        requestedAt: new Date().toISOString()
+    };
+    
+    // Actualizar en localStorage
+    if (window.apiService && window.apiService.saveDemoUser) {
+        window.apiService.saveDemoUser(currentUser);
+    }
+    
+    closeChangePlanModal();
+    
+    // Mostrar mensaje de éxito
+    showSuccessMessage(`¡Listo! Tu cambio a ${newPlan.title} se aplicará el ${currentUser.pendingPlan.scheduledDate}`);
+    
+    // Actualizar UI para mostrar el cambio pendiente
+    updatePendingPlanUI();
+}
+
+function updatePendingPlanUI() {
+    // Actualizar la sección de plan actual si hay un cambio pendiente
+    if (currentUser && currentUser.pendingPlan) {
+        const planCard = document.querySelector('.current-plan .plan-card');
+        if (planCard) {
+            // Remover badge anterior si existe
+            const existingBadge = planCard.querySelector('.pending-plan-badge');
+            if (existingBadge) existingBadge.remove();
+            
+            // Agregar nuevo badge
+            const badge = document.createElement('div');
+            badge.className = 'pending-plan-badge';
+            badge.innerHTML = `<i class="fas fa-clock"></i> Cambio a ${currentUser.pendingPlan.planName} programado para ${currentUser.pendingPlan.scheduledDate}`;
+            planCard.appendChild(badge);
+        }
+    }
+}
+
+function hideCurrentPlanFromAvailable() {
+    // Obtener plan actual del usuario
+    let currentPlanKey = 'plus';
+    if (currentUser && currentUser.plan) {
+        const planName = currentUser.plan.toLowerCase();
+        if (planName.includes('base') || planName.includes('normal')) {
+            currentPlanKey = 'base';
+        } else if (planName.includes('pro')) {
+            currentPlanKey = 'pro';
+        }
+    }
+    
+    // Mostrar todos los planes primero
+    const planCards = {
+        base: document.getElementById('planCardBase'),
+        plus: document.getElementById('planCardPlus'),
+        pro: document.getElementById('planCardPro')
+    };
+    
+    Object.values(planCards).forEach(card => {
+        if (card) card.style.display = 'block';
+    });
+    
+    // Ocultar el plan actual de los disponibles
+    if (planCards[currentPlanKey]) {
+        planCards[currentPlanKey].style.display = 'none';
+    }
 }
 
 function showProfile() {
@@ -89,68 +485,94 @@ function showProfile() {
     updateUserInterface();
 }
 
-// Authentication Functions - Con API REST (sin Firebase SDK)
-async function loginWithGoogle() {
-    try {
-        showLoading();
-        
-        // En modo demo, simular login con Google
-        const response = await window.apiService.loginWithGoogle('demo-google-token');
-        
-        // Si es usuario nuevo sin datos completos, pedir que complete
-        if (response.isNewUser || !response.user.dni) {
-            hideLoading();
-            openGoogleDataModal(response.user);
-            return;
+// ==================== GOOGLE OAUTH ====================
+// Tu Client ID de Google OAuth
+const GOOGLE_CLIENT_ID = '596128067456-tt2hreel7pgvs0cdtbjr345lgsumfvio.apps.googleusercontent.com';
+
+// Inicializar Google Identity Services y renderizar botones
+function initGoogleAuth() {
+    if (typeof google !== 'undefined' && google.accounts) {
+        google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleResponse
+        });
+
+        // Renderizar botón de LOGIN
+        const loginBtn = document.getElementById("google-login-btn");
+        if (loginBtn) {
+            google.accounts.id.renderButton(loginBtn, {
+                theme: "filled_blue",
+                size: "large",
+                text: "continue_with",
+                shape: "pill",
+                width: 280
+            });
         }
-        
-        currentUser = response.user;
-        updateUserInterface();
-        showHome();
-        hideLoading();
-        showSuccessMessage('¡Bienvenido a Fondo Escudo!');
-        
-        const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.reset();
+
+        // Renderizar botón de REGISTRO
+        const registerBtn = document.getElementById("google-register-btn");
+        if (registerBtn) {
+            google.accounts.id.renderButton(registerBtn, {
+                theme: "outline",
+                size: "large",
+                text: "signup_with",
+                shape: "pill",
+                width: 280
+            });
         }
-    } catch (error) {
-        hideLoading();
-        showErrorMessage(error.message || 'Error al iniciar sesión con Google');
+    } else {
+        // Reintentar en 500ms si la librería no cargó
+        setTimeout(initGoogleAuth, 500);
     }
 }
 
-// Registro con Google - abre modal para completar datos
-async function registerWithGoogle() {
+// Callback cuando Google devuelve las credenciales
+async function handleGoogleResponse(response) {
     try {
         showLoading();
         
-        // Simular autenticación con Google
-        const googleToken = 'demo-google-register-' + Date.now();
-        const googleEmail = 'nuevo.usuario@gmail.com';
-        const googleId = 'google-' + googleToken.slice(-8);
+        // Decodificar el token JWT de Google
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+
+        console.log("Datos recibidos de Google:", payload);
+
+        const googleUser = {
+            googleId: payload.sub,
+            email: payload.email,
+            firstName: payload.given_name || '',
+            lastName: payload.family_name || '',
+            photoUrl: payload.picture || null
+        };
         
-        // Verificar si ya existe un usuario con este email
-        const existingUser = window.apiService.findDemoUserByEmail(googleEmail);
+        // Buscar si ya existe en nuestra base de datos
+        let existingUser = window.apiService.findDemoUserByEmail(googleUser.email);
         
-        if (existingUser) {
+        if (existingUser && existingUser.dni) {
+            // Usuario existente con datos completos - login directo
+            existingUser.lastLogin = new Date().toISOString();
+            window.apiService.saveDemoUser(existingUser);
+            window.apiService.setToken('token-google-' + Date.now());
+            
+            currentUser = existingUser;
+            updateUserInterface();
+            showHome();
             hideLoading();
-            showErrorMessage('Este email ya está registrado. Usá "Iniciar con Google" en la pantalla de login.');
-            return;
+            showSuccessMessage(`¡Hola ${existingUser.firstName}! Bienvenido de nuevo.`);
+        } else {
+            // Usuario nuevo o sin datos completos - pedir que complete el modal
+            hideLoading();
+            openGoogleDataModal({
+                ...googleUser,
+                isNewRegistration: !existingUser
+            });
         }
-        
-        hideLoading();
-        
-        // Abrir modal para completar datos
-        openGoogleDataModal({
-            email: googleEmail,
-            googleId: googleId,
-            isNewRegistration: true
-        });
         
     } catch (error) {
         hideLoading();
-        showErrorMessage(error.message || 'Error al conectar con Google');
+        console.error('Error con Google:', error);
+        showErrorMessage('Error al procesar login con Google');
     }
 }
 
@@ -455,7 +877,13 @@ function closeHelpModal() {
 function selectHelpType(type) {
     selectedHelpType = type;
     const formSection = document.getElementById('helpFormSection');
+    const contactPanel = document.getElementById('contactPanel');
     const helpSubject = document.getElementById('helpSubject');
+
+    // Ocultar panel de contacto cuando se selecciona ticket
+    if (contactPanel) {
+        contactPanel.style.display = 'none';
+    }
 
     if (formSection) {
         formSection.style.display = 'block';
@@ -464,7 +892,21 @@ function selectHelpType(type) {
     if (helpSubject) {
         if (type === 'dni') helpSubject.value = 'Solicitud de corrección de DNI';
         if (type === 'problema') helpSubject.value = 'Reporte de problema';
-        if (type === 'otro') helpSubject.value = 'Consulta';
+    }
+}
+
+function showContactPanel() {
+    const formSection = document.getElementById('helpFormSection');
+    const contactPanel = document.getElementById('contactPanel');
+    
+    // Ocultar formulario de ticket
+    if (formSection) {
+        formSection.style.display = 'none';
+    }
+    
+    // Mostrar panel de contacto
+    if (contactPanel) {
+        contactPanel.style.display = 'block';
     }
 }
 
@@ -474,7 +916,7 @@ function generateTicketCode() {
     return `FE-${ts}-${part}`;
 }
 
-function submitHelpTicket() {
+async function submitHelpTicket() {
     if (!currentUser) {
         showLogin();
         return;
@@ -501,11 +943,12 @@ function submitHelpTicket() {
         ? `${currentUser.firstName} ${currentUser.lastName}`
         : currentUser.name || 'Usuario';
 
-    const ticket = {
+    const ticketData = {
         code,
         type: selectedHelpType,
         subject,
         message,
+        userId: currentUser.id || currentUser.uid,
         user: {
             email: currentUser.email || null,
             fullName,
@@ -513,22 +956,29 @@ function submitHelpTicket() {
             phone: currentUser.phone || null,
             gender: currentUser.gender || null,
             plan: currentUser.plan || null
-        },
-        createdAt: new Date().toISOString()
+        }
     };
 
-    // Guardar ticket en localStorage para que el desarrollador pueda verlo
-    const existing = localStorage.getItem('supportTickets');
-    const tickets = existing ? JSON.parse(existing) : [];
-    tickets.unshift(ticket);
-    localStorage.setItem('supportTickets', JSON.stringify(tickets));
-
-    // Cerrar modal y mostrar confirmación (sin abrir app de email)
-    closeHelpModal();
-    showSuccessMessage(`¡Ticket enviado! Código: ${ticket.code}`);
-    
-    // Log para el desarrollador
-    console.log('📩 Nuevo ticket de soporte:', ticket);
+    try {
+        showLoading();
+        
+        // Enviar ticket usando el api-service (guarda en BD o localStorage según modo)
+        const response = await window.apiService.createTicket(ticketData);
+        
+        hideLoading();
+        closeHelpModal();
+        
+        if (response.success) {
+            showSuccessMessage(`¡Ticket enviado! Código: ${code}`);
+            console.log('📩 Nuevo ticket de soporte:', response.ticket || ticketData);
+        } else {
+            showErrorMessage('Error al enviar el ticket');
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error enviando ticket:', error);
+        showErrorMessage('Error al enviar el ticket. Intentá de nuevo.');
+    }
 }
 
 // ==================== NOTIFICACIONES ====================
@@ -773,11 +1223,62 @@ function processPayment() {
     openPaymentModal();
 }
 
+// Links de Mercado Pago por plan
+const MERCADOPAGO_LINKS = {
+    base: 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=929754409b3f43d88d0b95b26518abc2',    // Plan Base $10.000
+    plus: 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=87927456dc854499841959e0572b8c6e',    // Plan Plus $15.000
+    pro: 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=7e68417d07ec4c5486eaeba408c77707'      // Plan Pro $20.000
+};
+
 function openPaymentModal() {
     const modal = document.getElementById('paymentModal');
     if (modal) {
+        // Actualizar datos del plan en el modal
+        updatePaymentModalData();
+        
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+    }
+}
+
+function updatePaymentModalData() {
+    // Obtener plan del usuario (considerar cambio pendiente)
+    let planKey = 'plus';
+    let planData = PLANS_DATA.plus;
+    
+    if (currentUser) {
+        // Si hay un cambio de plan pendiente, usar el nuevo plan
+        if (currentUser.pendingPlan) {
+            planKey = currentUser.pendingPlan.plan;
+            planData = PLANS_DATA[planKey];
+        } else if (currentUser.plan) {
+            const planName = currentUser.plan.toLowerCase();
+            if (planName.includes('base') || planName.includes('normal')) {
+                planKey = 'base';
+                planData = PLANS_DATA.base;
+            } else if (planName.includes('pro')) {
+                planKey = 'pro';
+                planData = PLANS_DATA.pro;
+            }
+        }
+    }
+    
+    // Actualizar nombre del plan
+    const planNameEl = document.getElementById('paymentPlanName');
+    if (planNameEl) {
+        planNameEl.textContent = planData.emoji + ' ' + planData.title;
+    }
+    
+    // Actualizar monto
+    const planAmountEl = document.getElementById('paymentPlanAmount');
+    if (planAmountEl) {
+        planAmountEl.textContent = planData.cost;
+    }
+    
+    // Actualizar monto de transferencia
+    const transferAmountEl = document.getElementById('transferAmount');
+    if (transferAmountEl) {
+        transferAmountEl.textContent = planData.cost;
     }
 }
 
@@ -791,22 +1292,33 @@ function closePaymentModal() {
 
 function payWithMercadoPago() {
     closePaymentModal();
-    showSuccessMessage('Redirigiendo a Mercado Pago...');
     
-    // Abrir link de pago de Mercado Pago en nueva pestaña
-    window.open('https://mpago.la/18Y8ptZ', '_blank');
+    // Obtener plan actual (o pendiente)
+    let planKey = 'plus';
+    if (currentUser) {
+        if (currentUser.pendingPlan) {
+            planKey = currentUser.pendingPlan.plan;
+        } else if (currentUser.plan) {
+            const planName = currentUser.plan.toLowerCase();
+            if (planName.includes('base') || planName.includes('normal')) {
+                planKey = 'base';
+            } else if (planName.includes('pro')) {
+                planKey = 'pro';
+            }
+        }
+    }
+    
+    const paymentLink = MERCADOPAGO_LINKS[planKey] || MERCADOPAGO_LINKS.plus;
+    
+    showSuccessMessage('Redirigiendo a Mercado Pago...');
+    window.open(paymentLink, '_blank');
 }
 
 function showBankTransfer() {
     closePaymentModal();
     
-    // Update transfer amount
-    const planName = currentUser.plan || 'Plan Normal';
-    const amount = getPlanPrice(planName);
-    const transferAmountElement = document.getElementById('transferAmount');
-    if (transferAmountElement) {
-        transferAmountElement.textContent = `$${amount.toLocaleString('es-AR')}`;
-    }
+    // Actualizar monto de transferencia usando datos del plan
+    updatePaymentModalData();
     
     const modal = document.getElementById('bankTransferModal');
     if (modal) {
@@ -995,6 +1507,9 @@ function validatePhone(phone) {
 
 // Initialize Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar Google OAuth
+    initGoogleAuth();
+    
     // Login form
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -1257,3 +1772,20 @@ window.showProfile = showProfile;
 window.loginWithGoogle = loginWithGoogle;
 window.logout = logout;
 window.toggleMenu = toggleMenu;
+window.closePlanStatusModal = closePlanStatusModal;
+window.selectPlan = selectPlan;
+window.closeChangePlanModal = closeChangePlanModal;
+window.confirmPlanChange = confirmPlanChange;
+window.openHelpModal = openHelpModal;
+window.closeHelpModal = closeHelpModal;
+window.selectHelpType = selectHelpType;
+window.submitHelpTicket = submitHelpTicket;
+window.openNotificationsModal = openNotificationsModal;
+window.closeNotificationsModal = closeNotificationsModal;
+window.saveNotificationSettings = saveNotificationSettings;
+window.openSecurityModal = openSecurityModal;
+window.closeSecurityModal = closeSecurityModal;
+window.showPrivacyPolicy = showPrivacyPolicy;
+window.showTermsOfService = showTermsOfService;
+window.showMultas = showMultas;
+window.showContactPanel = showContactPanel;
