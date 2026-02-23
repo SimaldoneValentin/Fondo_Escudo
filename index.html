@@ -8,9 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Google Sign-In Platform Library -->
-    <script src="https://apis.google.com/js/platform.js" async defer></script>
-    <meta name="google-signin-client_id" content="TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     
     <!-- API Service - Conexión directa a Google Cloud SQL -->
     <script src="api-service.js" defer></script>
@@ -18,6 +17,7 @@
     <!-- Main Application Script -->
     <script src="script.js" defer></script>
 </head>
+
 <body>
     <!-- Login Screen -->
     <div id="loginScreen" class="screen active">
@@ -25,20 +25,15 @@
             <div class="login-container">
                 <div class="logo-section">
                     <div class="logo">
-                        <i class="fas fa-shield"></i>  <h1>Fondo Escudo</h1>
+                        <img src="2 (1).png" alt="FondoEscudo Logo" class="logo">
                     </div>
-                    
-                    <p>Gestiona tu servicio de forma simple</p>
                 </div>
                 
                 <div class="login-form">
-                    <button class="btn-google" onclick="loginWithGoogle()">
-                        <i class="fab fa-google"></i>
-                        Continuar con Google
-                    </button>
-                    
-                    <div class="divider">
-                        <span>o</span>
+                    <div class="social-login">
+                        <div id="google-login-btn"></div>
+                        <div>o continúa con email</div>
+
                     </div>
                     
                     <form id="loginForm">
@@ -122,16 +117,12 @@
                     </div>
                     
                     <button type="submit" class="btn-primary">Crear cuenta</button>
-                    
-                    <div class="divider">
-                        <span>o</span>
-                    </div>
-                    
-                    <button type="button" class="btn-google" onclick="registerWithGoogle()">
-                        <i class="fab fa-google"></i>
-                        Registrarse con Google
-                    </button>
                 </form>
+                
+                <div class="social-login">
+                    <div class="divider"><span>o regístrate con</span></div>
+                    <div id="google-register-btn"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -141,7 +132,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Completá tus datos</h3>
-                <button class="modal-close" onclick="closeGoogleDataModal()">&times;</button>
+                <button class="btn-close" onclick="closeGoogleDataModal()">&times;</button>
             </div>
             <form id="googleDataForm" class="modal-body">
                 <p class="modal-description">Para completar tu registro con Google, necesitamos algunos datos adicionales:</p>
@@ -189,7 +180,7 @@
         <div class="container">
             <header class="app-header">
                 <div class="header-top">
-                <div class="user-info">
+                <div class="user-info" onclick="showProfile()" style="cursor: pointer;">
                     <div class="avatar">
                         <i class="fas fa-user"></i>
                     </div>
@@ -197,6 +188,7 @@
                         <h3 id="userName">Usuario</h3>
                         <p class="plan-name">Plan Plus</p>
                     </div>
+                    <i class="fas fa-chevron-right" style="color: var(--text-muted); margin-left: auto;"></i>
                 </div>
             </header>
 
@@ -214,11 +206,11 @@
                     <div class="status-details">
                         <div class="status-item">
                             <span class="label">Próximo vencimiento</span>
-                            <span class="value">30/1/2026</span>
+                            <span class="value" id="nextPaymentDate">--/--/----</span>
                         </div>
                         <div class="status-item">
                             <span class="label">Días restantes</span>
-                            <span class="value highlight">7 días</span>
+                            <span class="value highlight" id="daysRemaining">-- días</span>
                         </div>
                     </div>
                     
@@ -241,9 +233,9 @@
                             <i class="fas fa-chart-line"></i>
                             <span>Estado</span>
                         </button>
-                        <button class="action-card" onclick="showProfile()">
-                            <i class="fas fa-user-cog"></i>
-                            <span>Perfil</span>
+                        <button class="action-card" onclick="showMultas()">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>Multas</span>
                         </button>
                     </div>
                 </section>
@@ -281,17 +273,19 @@
                 <!-- Current Plan -->
                 <section class="current-plan">
                     <h3>Plan actual</h3>
-                    <div class="plan-card current">
+                    <div class="plan-card current" id="currentPlanCard">
                         <div class="plan-header">
-                            <h4>Plan Plus</h4>
-                            <div class="plan-price">$15.000<span>/mes</span></div>
+                            <h4 id="currentPlanTitle">🔵 Plan Plus</h4>
+                            <div class="plan-price" id="currentPlanPrice">$15.000<span>/mes</span></div>
                         </div>
-                        <ul class="plan-features">
-                            <li><i class="fas fa-check"></i> Plan plus $15.000</li>
-                            <li><i class="fas fa-check"></i> de 50% a 65% </li>
-                            <li><i class="fas fa-check"></i> Minima de 60 dias</li>
+                        <ul class="plan-features" id="currentPlanFeatures">
+                            <li><i class="fas fa-check"></i> Cobertura del 50% al 65%</li>
+                            <li><i class="fas fa-check"></i> Permanencia mínima 60 días</li>
+                            <li><i class="fas fa-check"></i> Beneficios intermedios</li>
                         </ul>
-                        <button class="btn-secondary">Cambiar de plan</button>
+                        <div class="current-plan-label">
+                            <i class="fas fa-check-circle"></i> Plan actual
+                        </div>
                     </div>
                 </section>
 
@@ -299,31 +293,43 @@
                 <section class="available-plans">
                     <h3>Planes disponibles</h3>
                     
-                    <div class="plan-card">
+                    <div class="plan-card" id="planCardBase">
                         <div class="plan-header">
-                            <h4>Plan Normal</h4>
+                            <h4>🟢 Plan Base</h4>
                             <div class="plan-price">$10.000<span>/mes</span></div>
                         </div>
                         <ul class="plan-features">
-                            <li><i class="fas fa-check"></i> Plan base $10.000</li>
-                            <li><i class="fas fa-check"></i> de 20% a 45%</li>
-                            <li><i class="fas fa-check"></i> permanencia minima de 90 dias</li>
+                            <li><i class="fas fa-check"></i> Cobertura del 20% al 45%</li>
+                            <li><i class="fas fa-check"></i> Permanencia mínima 90 días</li>
+                            <li><i class="fas fa-check"></i> Beneficios estándar</li>
                         </ul>
-                        <button class="btn-outline">Seleccionar</button>
+                        <button class="btn-outline" onclick="selectPlan('base')">Seleccionar</button>
                     </div>
 
-                    <div class="plan-card">
+                    <div class="plan-card" id="planCardPro">
                         <div class="plan-header">
-                            <h4>Plan Pro</h4>
+                            <h4>🟡 Plan Pro</h4>
                             <div class="plan-price">$20.000<span>/mes</span></div>
                         </div>
                         <ul class="plan-features">
-                            <li><i class="fas fa-check"></i>Plan pro $20.0000</li>
-                            <li><i class="fas fa-check"></i>de 70% a 90% </li>
-                            <li><i class="fas fa-check"></i>en cobertura general permanencia 60 dias ya con beneficios altos</li>
-
+                            <li><i class="fas fa-check"></i> Cobertura del 70% al 90%</li>
+                            <li><i class="fas fa-check"></i> Permanencia mínima 60 días</li>
+                            <li><i class="fas fa-check"></i> Beneficios altos</li>
                         </ul>
-                        <button class="btn-outline">Seleccionar</button>
+                        <button class="btn-outline" onclick="selectPlan('pro')">Seleccionar</button>
+                    </div>
+
+                    <div class="plan-card" id="planCardPlus">
+                        <div class="plan-header">
+                            <h4>🔵 Plan Plus</h4>
+                            <div class="plan-price">$15.000<span>/mes</span></div>
+                        </div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Cobertura del 50% al 65%</li>
+                            <li><i class="fas fa-check"></i> Permanencia mínima 60 días</li>
+                            <li><i class="fas fa-check"></i> Beneficios intermedios</li>
+                        </ul>
+                        <button class="btn-outline" onclick="selectPlan('plus')">Seleccionar</button>
                     </div>
                 </section>
             </main>
@@ -414,6 +420,24 @@
         </div>
     </div>
 
+    <!-- Multas Screen -->
+    <div id="multasScreen" class="screen">
+        <div class="container">
+            <header class="screen-header">
+                <button class="btn-back" onclick="showHome()">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h2>Mis Multas</h2>
+            </header>
+
+            <main class="multas-content">
+                <div id="multasList">
+                    <!-- Las multas se cargan dinámicamente -->
+                </div>
+            </main>
+        </div>
+    </div>
+
     <!-- Profile Screen -->
     <div id="profileScreen" class="screen">
         <div class="container">
@@ -495,6 +519,13 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="payment-summary">
+                    <div class="payment-plan-info">
+                        <span class="payment-plan-name" id="paymentPlanName">🔵 PLAN PLUS</span>
+                        <span class="payment-plan-amount" id="paymentPlanAmount">$15.000</span>
+                    </div>
+                </div>
+                
                 <div class="payment-method-card" onclick="payWithMercadoPago()">
                     <div class="payment-method-icon mp">
                         <i class="fas fa-credit-card"></i>
@@ -547,8 +578,8 @@
                         <div class="bank-data-item">
                             <span class="label">CVU</span>
                             <div class="value-copy">
-                                <span class="value">0000003100012345678901</span>
-                                <button class="btn-copy" onclick="copyToClipboard('0000003100012345678901')">
+                                <span class="value">0000003100056015449790</span>
+                                <button class="btn-copy" onclick="copyToClipboard('0000003100056015449790')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -557,8 +588,8 @@
                         <div class="bank-data-item">
                             <span class="label">Alias</span>
                             <div class="value-copy">
-                                <span class="value">FONDO.ESCUDO.PAGO</span>
-                                <button class="btn-copy" onclick="copyToClipboard('FONDO.ESCUDO.PAGO')">
+                                <span class="value">chofer.uber19</span>
+                                <button class="btn-copy" onclick="copyToClipboard('chofer.uber19')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -567,8 +598,8 @@
                         <div class="bank-data-item">
                             <span class="label">CUIT</span>
                             <div class="value-copy">
-                                <span class="value">30-12345678-9</span>
-                                <button class="btn-copy" onclick="copyToClipboard('30-12345678-9')">
+                                <span class="value">20-38363166-2</span>
+                                <button class="btn-copy" onclick="copyToClipboard('20-38363166-2')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -689,7 +720,7 @@
                     <i class="fas fa-chevron-right"></i>
                 </div>
 
-                <div class="payment-method-card" onclick="selectHelpType('otro')">
+                <div class="payment-method-card" onclick="showContactPanel()">
                     <div class="payment-method-icon bank">
                         <i class="fas fa-comment-dots"></i>
                     </div>
@@ -698,6 +729,39 @@
                         <p>Atención y soporte</p>
                     </div>
                     <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <!-- Panel de Contacto -->
+                <div id="contactPanel" style="display:none; margin-top: 16px;">
+                    <div class="contact-panel">
+                        <h4><i class="fas fa-headset"></i> Canales de atención</h4>
+                        
+                        <a href="https://wa.me/5491112345678" target="_blank" class="contact-card whatsapp">
+                            <div class="contact-icon">
+                                <i class="fab fa-whatsapp"></i>
+                            </div>
+                            <div class="contact-info">
+                                <span class="contact-title">WhatsApp</span>
+                                <span class="contact-detail">+54 9 11 1234-5678</span>
+                            </div>
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        
+                        <a href="mailto:soporte@fondoescudo.com" class="contact-card email">
+                            <div class="contact-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="contact-info">
+                                <span class="contact-title">Email</span>
+                                <span class="contact-detail">soporte@fondoescudo.com</span>
+                            </div>
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        
+                        <p class="contact-hours">
+                            <i class="fas fa-clock"></i> Horario de atención: Lun a Vie de 9 a 18 hs
+                        </p>
+                    </div>
                 </div>
 
                 <div id="helpFormSection" style="display:none; margin-top: 16px;">
@@ -720,7 +784,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Notificaciones</h3>
-                <button class="modal-close" onclick="closeNotificationsModal()">&times;</button>
+                <button class="btn-close" onclick="closeNotificationsModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="notification-settings">
@@ -775,7 +839,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Seguridad</h3>
-                <button class="modal-close" onclick="closeSecurityModal()">&times;</button>
+                <button class="btn-close" onclick="closeSecurityModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <!-- Historial de accesos -->
@@ -828,6 +892,115 @@
                         <span>Términos y Condiciones</span>
                         <i class="fas fa-external-link-alt"></i>
                     </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Estado del Plan -->
+    <div id="planStatusModal" class="modal">
+        <div class="modal-content plan-status-modal">
+            <div class="modal-header">
+                <h3>Estado de tu Plan</h3>
+                <button class="btn-close" onclick="closePlanStatusModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Plan Badge -->
+                <div class="plan-status-badge" id="planBadge">
+                    <span class="plan-emoji">🔵</span>
+                    <span class="plan-title">PLAN PLUS</span>
+                </div>
+                
+                <p class="plan-description" id="planDescription">El equilibrio perfecto entre costo y velocidad de cobertura. El más recomendado.</p>
+                
+                <!-- Detalles del Plan -->
+                <div class="plan-details-grid">
+                    <div class="plan-detail-item">
+                        <i class="fas fa-dollar-sign"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Costo Mensual</span>
+                            <span class="detail-value" id="planCost">$15.000</span>
+                        </div>
+                    </div>
+                    
+                    <div class="plan-detail-item">
+                        <i class="fas fa-shield-alt"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Cobertura</span>
+                            <span class="detail-value" id="planCoverage">Del 50% al 65%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="plan-detail-item">
+                        <i class="fas fa-calendar-alt"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Permanencia Mínima</span>
+                            <span class="detail-value" id="planPermanence">60 días (2 meses)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="plan-detail-item">
+                        <i class="fas fa-star"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Nivel de Beneficios</span>
+                            <span class="detail-value" id="planBenefits">Intermedio - Cobertura Ampliada</span>
+                        </div>
+                    </div>
+                    
+                    <div class="plan-detail-item">
+                        <i class="fas fa-user-check"></i>
+                        <div class="detail-content">
+                            <span class="detail-label">Ideal para</span>
+                            <span class="detail-value" id="planIdeal">Usuarios que buscan seguridad sólida en poco tiempo.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="plan-status-actions">
+                    <button class="btn-secondary" onclick="closePlanStatusModal(); showPlans();">
+                        <i class="fas fa-exchange-alt"></i> Cambiar de Plan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Cambio de Plan -->
+    <div id="changePlanModal" class="modal">
+        <div class="modal-content change-plan-modal">
+            <div class="modal-header">
+                <h3>Confirmar cambio de plan</h3>
+                <button class="btn-close" onclick="closeChangePlanModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="change-plan-info">
+                    <div class="plan-change-arrow">
+                        <div class="current-plan-box">
+                            <span class="label">Plan actual</span>
+                            <span class="plan-name" id="currentPlanName">🔵 PLAN PLUS</span>
+                        </div>
+                        <i class="fas fa-arrow-right"></i>
+                        <div class="new-plan-box">
+                            <span class="label">Nuevo plan</span>
+                            <span class="plan-name" id="newPlanName">🟡 PLAN PRO</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="change-plan-notice">
+                    <i class="fas fa-info-circle"></i>
+                    <div class="notice-content">
+                        <p class="notice-title">Sin cargos extras</p>
+                        <p class="notice-text">Tu cambio de plan se aplicará el día de tu próxima renovación: <strong id="renewalDate">15 de Marzo, 2026</strong></p>
+                        <p class="notice-subtext">Seguirás disfrutando de tu plan actual hasta esa fecha.</p>
+                    </div>
+                </div>
+                
+                <div class="change-plan-actions">
+                    <button class="btn-outline" onclick="closeChangePlanModal()">Cancelar</button>
+                    <button class="btn-primary" onclick="confirmPlanChange()">
+                        <i class="fas fa-check"></i> Confirmar cambio
+                    </button>
                 </div>
             </div>
         </div>
