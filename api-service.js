@@ -3,7 +3,43 @@ class ApiService {
     constructor() {
         this.baseURL = 'http://localhost:3001/api';
         this.token = localStorage.getItem('authToken');
-        this.demoMode = false; // Cambiar a false cuando el backend esté corriendo
+        this.demoMode = true; // Cambiar a false cuando el backend esté corriendo
+    }
+
+    // Obtener todos los usuarios demo guardados
+    getDemoUsers() {
+        const saved = localStorage.getItem('demoUsers');
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    // Guardar usuario en la lista de usuarios demo
+    saveDemoUser(user) {
+        const users = this.getDemoUsers();
+        const existingIndex = users.findIndex(u => u.email === user.email);
+        if (existingIndex >= 0) {
+            users[existingIndex] = user;
+        } else {
+            users.push(user);
+        }
+        localStorage.setItem('demoUsers', JSON.stringify(users));
+        localStorage.setItem('demoUser', JSON.stringify(user)); // Usuario actual
+    }
+
+    // Buscar usuario por email
+    findDemoUserByEmail(email) {
+        const users = this.getDemoUsers();
+        return users.find(u => u.email === email) || null;
+    }
+
+    // Buscar usuario por Google ID
+    findDemoUserByGoogleId(googleId) {
+        const users = this.getDemoUsers();
+        return users.find(u => u.googleId === googleId) || null;
+    }
+
+    getDemoUser() {
+        const savedUser = localStorage.getItem('demoUser');
+        return savedUser ? JSON.parse(savedUser) : null;
     }
 
     // Configurar token
@@ -47,8 +83,15 @@ class ApiService {
     async register(userData) {
         // MODO DEMO: Funciona sin backend
         if (this.demoMode) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 setTimeout(() => {
+                    // Verificar si el email ya existe
+                    const existingUser = this.findDemoUserByEmail(userData.email);
+                    if (existingUser) {
+                        reject(new Error('Este email ya está registrado'));
+                        return;
+                    }
+
                     const mockToken = 'demo-token-' + Date.now();
                     this.setToken(mockToken);
                     
@@ -56,17 +99,19 @@ class ApiService {
                         id: Date.now(),
                         uid: 'demo-uid-' + Date.now(),
                         email: userData.email,
+                        password: userData.password, // En producción se hashea
                         firstName: userData.firstName,
                         lastName: userData.lastName,
                         dni: userData.dni,
                         phone: userData.phone,
                         gender: userData.gender,
                         plan: 'Plan Normal',
-                        registeredWith: 'email'
+                        registeredWith: 'email',
+                        createdAt: new Date().toISOString()
                     };
                     
-                    // Guardar en localStorage
-                    localStorage.setItem('demoUser', JSON.stringify(mockUser));
+                    // Guardar en lista de usuarios
+                    this.saveDemoUser(mockUser);
                     
                     resolve({
                         message: 'Usuario registrado exitosamente',
@@ -99,26 +144,32 @@ class ApiService {
         if (this.demoMode) {
             return new Promise((resolve, reject) => {
                 setTimeout(() => {
-                    // Buscar usuario guardado
-                    const savedUser = localStorage.getItem('demoUser');
+                    // Buscar usuario por email en la lista
+                    const user = this.findDemoUserByEmail(email);
                     
-                    if (savedUser) {
-                        const user = JSON.parse(savedUser);
-                        if (user.email === email) {
-                            const mockToken = 'demo-token-' + Date.now();
-                            this.setToken(mockToken);
-                            
-                            resolve({
-                                message: 'Login exitoso',
-                                user: user,
-                                token: mockToken
-                            });
-                        } else {
-                            reject(new Error('Credenciales incorrectas'));
-                        }
-                    } else {
+                    if (!user) {
                         reject(new Error('Usuario no encontrado'));
+                        return;
                     }
+
+                    // Verificar contraseña (solo para usuarios registrados con email)
+                    if (user.registeredWith === 'email' && user.password !== password) {
+                        reject(new Error('Contraseña incorrecta'));
+                        return;
+                    }
+
+                    const mockToken = 'demo-token-' + Date.now();
+                    this.setToken(mockToken);
+                    
+                    // Actualizar último login
+                    user.lastLogin = new Date().toISOString();
+                    this.saveDemoUser(user);
+                    
+                    resolve({
+                        message: 'Login exitoso',
+                        user: user,
+                        token: mockToken
+                    });
                 }, 500);
             });
         }
@@ -145,30 +196,55 @@ class ApiService {
         if (this.demoMode) {
             return new Promise((resolve) => {
                 setTimeout(() => {
+                    // Simular ID único de Google (en producción viene del token)
+                    const googleId = 'google-' + idToken.slice(-8);
+                    const googleEmail = 'usuario.google@gmail.com';
+                    
+                    // Buscar si ya existe un usuario con este Google ID o email
+                    let existingUser = this.findDemoUserByGoogleId(googleId);
+                    if (!existingUser) {
+                        existingUser = this.findDemoUserByEmail(googleEmail);
+                    }
+                    
                     const mockToken = 'demo-token-google-' + Date.now();
                     this.setToken(mockToken);
                     
-                    const mockUser = {
-                        id: Date.now(),
-                        uid: 'google-demo-' + Date.now(),
-                        email: 'usuario@gmail.com',
-                        firstName: 'Usuario',
-                        lastName: 'Google',
-                        dni: 'GOOGLE-' + Date.now(),
-                        phone: null,
-                        gender: 'otro',
-                        plan: 'Plan Normal',
-                        registeredWith: 'google',
-                        photoUrl: null
-                    };
+                    let mockUser;
+                    let isNewUser = false;
                     
-                    localStorage.setItem('demoUser', JSON.stringify(mockUser));
+                    if (existingUser) {
+                        // Usuario existente - actualizar último login
+                        mockUser = existingUser;
+                        mockUser.lastLogin = new Date().toISOString();
+                    } else {
+                        // Usuario nuevo de Google
+                        isNewUser = true;
+                        mockUser = {
+                            id: Date.now(),
+                            uid: 'google-uid-' + Date.now(),
+                            googleId: googleId,
+                            email: googleEmail,
+                            firstName: 'Usuario',
+                            lastName: 'Google',
+                            dni: null,
+                            phone: null,
+                            gender: null,
+                            plan: 'Plan Normal',
+                            registeredWith: 'google',
+                            photoUrl: null,
+                            createdAt: new Date().toISOString(),
+                            lastLogin: new Date().toISOString()
+                        };
+                    }
+                    
+                    // Guardar en lista de usuarios
+                    this.saveDemoUser(mockUser);
                     
                     resolve({
-                        message: 'Login exitoso con Google',
+                        message: isNewUser ? 'Cuenta creada con Google' : 'Login exitoso con Google',
                         user: mockUser,
-                        token: mockToken,
-                        isNewUser: false
+                        isNewUser: isNewUser,
+                        token: mockToken
                     });
                 }, 500);
             });
@@ -226,6 +302,22 @@ class ApiService {
     }
 
     async updateProfile(profileData) {
+        // MODO DEMO: actualizar usuario local
+        if (this.demoMode) {
+            const user = this.getDemoUser();
+            if (!user) {
+                throw new Error('Usuario no encontrado');
+            }
+
+            const updatedUser = { ...user, ...profileData };
+            localStorage.setItem('demoUser', JSON.stringify(updatedUser));
+
+            return {
+                message: 'Perfil actualizado exitosamente',
+                user: updatedUser
+            };
+        }
+
         try {
             const response = await fetch(`${this.baseURL}/users/profile`, {
                 method: 'PUT',
@@ -363,6 +455,69 @@ class ApiService {
         const authResponse = googleUser.getAuthResponse();
         return authResponse.id_token;
     }
+
+    // TICKETS DE SOPORTE
+    async createTicket(ticketData) {
+        // MODO DEMO: Guardar en localStorage
+        if (this.demoMode) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const tickets = JSON.parse(localStorage.getItem('supportTickets') || '[]');
+                    const newTicket = {
+                        id: Date.now(),
+                        ...ticketData,
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
+                    };
+                    tickets.unshift(newTicket);
+                    localStorage.setItem('supportTickets', JSON.stringify(tickets));
+                    
+                    resolve({
+                        success: true,
+                        ticketId: newTicket.id,
+                        ticket: newTicket
+                    });
+                }, 300);
+            });
+        }
+
+        // MODO REAL: Enviar al backend
+        try {
+            const response = await fetch(`${this.baseURL}/tickets/create`, {
+                method: 'POST',
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                    user_id: ticketData.userId,
+                    subject: ticketData.subject,
+                    description: ticketData.message,
+                    category: ticketData.type
+                })
+            });
+
+            return await this.handleResponse(response);
+        } catch (error) {
+            console.error('Error creando ticket:', error);
+            throw error;
+        }
+    }
+
+    // Obtener tickets del usuario
+    async getTickets(userId) {
+        if (this.demoMode) {
+            const tickets = JSON.parse(localStorage.getItem('supportTickets') || '[]');
+            return { success: true, tickets: tickets.filter(t => t.userId === userId) };
+        }
+
+        try {
+            const response = await fetch(`${this.baseURL}/tickets/${userId}`, {
+                headers: this.getHeaders()
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            console.error('Error obteniendo tickets:', error);
+            throw error;
+        }
+    }
 }
 
 // Inicializar servicio
@@ -385,4 +540,3 @@ window.addEventListener('load', async () => {
         }
     }
 });
-
